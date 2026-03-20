@@ -5,6 +5,18 @@ dotfiles_repo_accept_hostkey: false
 dotfiles_repo_local_destination: "~/Documents/dotfiles"
 
 dotfiles_home: "~"
+
+# Stow 模式：使用 GNU Stow 管理 symlink
+# 设为 true 时，使用 stow 替代手动 symlink
+dotfiles_use_stow: false
+
+# Stow 包列表（仅在 dotfiles_use_stow: true 时生效）
+# 对应 dotfiles 仓库中的子目录名
+dotfiles_stow_packages:
+  - zsh
+  - starship
+
+# 传统模式：手动 symlink 的文件列表（仅在 dotfiles_use_stow: false 时生效）
 dotfiles_files:
   - .zshrc
   - .gitignore

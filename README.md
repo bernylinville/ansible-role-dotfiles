@@ -1,12 +1,18 @@
 # Ansible Role: Dotfiles
 
-[![CI](https://github.com/geerlingguy/ansible-role-dotfiles/actions/workflows/ci.yml/badge.svg)](https://github.com/geerlingguy/ansible-role-dotfiles/actions/workflows/ci.yml)
+[![CI](https://github.com/bernylinville/ansible-role-dotfiles/actions/workflows/ci.yml/badge.svg)](https://github.com/bernylinville/ansible-role-dotfiles/actions/workflows/ci.yml)
 
-Installs a set of dotfiles from a given Git repository. By default, it will install my (geerlingguy's) [dotfiles](https://github.com/geerlingguy/dotfiles), but you can use any set of dotfiles you'd like, as long as they follow a conventional format.
+Installs a set of dotfiles from a given Git repository. Supports two modes:
+
+- **Stow mode** (recommended): Uses [GNU Stow](https://www.gnu.org/software/stow/) to manage symlinks, supporting structured dotfiles repos with per-package directories.
+- **Legacy mode**: Creates symlinks directly from repository root to home directory (original behavior).
+
+Forked from [geerlingguy/ansible-role-dotfiles](https://github.com/geerlingguy/ansible-role-dotfiles).
 
 ## Requirements
 
-Requires `git` on the managed machine (you can easily install it with `geerlingguy.git` if required).
+- `git` on the managed machine
+- `stow` on the managed machine (only if using stow mode)
 
 ## Role Variables
 
@@ -14,34 +20,45 @@ Available variables are listed below, along with default values (see `defaults/m
 
     dotfiles_repo: "https://github.com/geerlingguy/dotfiles.git"
     dotfiles_repo_version: master
-
-The git repository and branch/tag/commit hash to use for retrieving dotfiles. Dotfiles should generally be laid out within the root directory of the repository.
-
     dotfiles_repo_accept_hostkey: false
-
-Add the hostkey for the repo url if not already added. If ssh_opts contains "-o StrictHostKeyChecking=no", this parameter is ignored.
-
     dotfiles_repo_local_destination: "~/Documents/dotfiles"
-
-The local path where the `dotfiles_repo` will be cloned.
-
     dotfiles_home: "~"
 
-The home directory where dotfiles will be linked. Generally, the default should work, but in some circumstances, or when running the role as sudo on behalf of another user, you may want to specify the full path.
+### Stow Mode
+
+    dotfiles_use_stow: false
+
+Set to `true` to use GNU Stow for managing symlinks. When enabled, the role expects the dotfiles repo to have per-package subdirectories (e.g., `zsh/`, `starship/`).
+
+    dotfiles_stow_packages:
+      - zsh
+      - starship
+
+List of stow packages (subdirectories) to deploy.
+
+### Legacy Mode
 
     dotfiles_files:
       - .zshrc
       - .gitignore
-      - .inputrc
-      - .vimrc
 
-Which files from the dotfiles repository should be linked to the `dotfiles_home`.
-
-## Dependencies
-
-None
+Which files from the dotfiles repository root should be linked to `dotfiles_home`. Only used when `dotfiles_use_stow` is `false`.
 
 ## Example Playbook
+
+### Stow Mode
+
+    - hosts: localhost
+      vars:
+        dotfiles_repo: "https://github.com/yourname/dotfiles.git"
+        dotfiles_use_stow: true
+        dotfiles_stow_packages:
+          - zsh
+          - starship
+      roles:
+        - { role: geerlingguy.dotfiles }
+
+### Legacy Mode
 
     - hosts: localhost
       roles:
@@ -53,4 +70,4 @@ MIT / BSD
 
 ## Author Information
 
-This role was created in 2015 by [Jeff Geerling](https://www.jeffgeerling.com/), author of [Ansible for DevOps](https://www.ansiblefordevops.com/).
+This role was originally created by [Jeff Geerling](https://www.jeffgeerling.com/), forked and extended with stow support by [Berny Linville](https://github.com/bernylinville).
