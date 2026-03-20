@@ -1,40 +1,62 @@
 ---
-# This workflow requires a GALAXY_API_KEY secret present in the GitHub
-# repository or organization.
+# 当 CI lint 通过且推送到 main 分支时，自动导入到 Ansible Galaxy
 #
-# See: https://github.com/marketplace/actions/publish-ansible-role-to-galaxy
-# See: https://github.com/ansible/galaxy/issues/46
+# 需要在仓库 Settings → Secrets and variables → Actions 中设置:
+#   GALAXY_API_KEY: Ansible Galaxy API Token (从 https://galaxy.ansible.com/ui/token/ 获取)
 
-name: Release
-'on':
+name: Release to Galaxy
+
+"on":
   push:
-    tags:
-      - '*'
-
-defaults:
-  run:
-    working-directory: 'geerlingguy.dotfiles'
+    branches:
+      - main
+  workflow_dispatch:
 
 jobs:
 
-  release:
-    name: Release
+  lint:
+    name: Lint
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: "bernylinville.dotfiles"
     steps:
       - name: Check out the codebase.
         uses: actions/checkout@v4
         with:
-          path: 'geerlingguy.dotfiles'
+          path: "bernylinville.dotfiles"
 
       - name: Set up Python 3.
         uses: actions/setup-python@v5
         with:
-          python-version: '3.13'  # Can't go to 3.14+ until Ansible 13.x
+          python-version: "3.13"
+
+      - name: Install lint dependencies.
+        run: pip3 install yamllint ansible-lint
+
+      - name: Run yamllint.
+        run: yamllint .
+
+      - name: Run ansible-lint.
+        run: ansible-lint
+
+  release:
+    name: Release to Galaxy
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - name: Check out the codebase.
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
 
       - name: Install Ansible.
         run: pip3 install ansible-core
 
-      - name: Trigger a new import on Galaxy.
+      - name: Import role to Galaxy.
         run: >-
           ansible-galaxy role import --api-key ${{ secrets.GALAXY_API_KEY }}
-          $(echo ${{ github.repository }} | cut -d/ -f1) $(echo ${{ github.repository }} | cut -d/ -f2)
+          bernylinville ansible-role-dotfiles
