@@ -1,6 +1,6 @@
 ---
 - name: Ensure dotfiles repository is cloned locally.
-  git:
+  ansible.builtin.git:
     repo: "{{ dotfiles_repo }}"
     dest: "{{ dotfiles_repo_local_destination }}"
     version: "{{ dotfiles_repo_version }}"
@@ -14,13 +14,13 @@
   when: dotfiles_use_stow
   block:
     - name: Check if stow is available.
-      command: which stow
+      ansible.builtin.command: which stow
       register: stow_check
       failed_when: false
       changed_when: false
 
     - name: Fail if stow is not installed.
-      fail:
+      ansible.builtin.fail:
         msg: >
           GNU Stow is not installed. Please install it first:
           macOS: brew install stow
@@ -34,29 +34,31 @@
     _dotfiles_home: "{{ dotfiles_home | expanduser }}"
   block:
     - name: Backup existing dotfiles before stow.
-      shell: |
-        for pkg in {{ dotfiles_stow_packages | join(' ') }}; do
-          pkg_dir="{{ _dotfiles_dest }}/${pkg}"
-          if [ -d "$pkg_dir" ]; then
-            find "$pkg_dir" -maxdepth 1 -name '.*' -type f -exec basename {} \; | while read file; do
-              target="{{ _dotfiles_home }}/${file}"
-              if [ -f "$target" ] && [ ! -L "$target" ]; then
-                mv "$target" "${target}.bak.$(date +%Y%m%d%H%M%S)"
-              fi
-            done
-          fi
-        done
-      args:
+      ansible.builtin.shell:
+        cmd: |
+          set -o pipefail
+          for pkg in {{ dotfiles_stow_packages | join(' ') }}; do
+            pkg_dir="{{ _dotfiles_dest }}/${pkg}"
+            if [ -d "$pkg_dir" ]; then
+              find "$pkg_dir" -maxdepth 1 -name '.*' -type f -exec basename {} \; | while read -r file; do
+                target="{{ _dotfiles_home }}/${file}"
+                if [ -f "$target" ] && [ ! -L "$target" ]; then
+                  mv "$target" "${target}.bak.$(date +%Y%m%d%H%M%S)"
+                fi
+              done
+            fi
+          done
         executable: /bin/bash
       changed_when: false
       become: false
 
     - name: Install dotfiles packages via stow.
-      command: >
+      ansible.builtin.command: >
         stow -d {{ _dotfiles_dest }}
         -t {{ _dotfiles_home }}
         --restow {{ item }}
-      with_items: "{{ dotfiles_stow_packages }}"
+      loop: "{{ dotfiles_stow_packages }}"
+      changed_when: true
       become: false
 
 # =============================================================================
@@ -66,32 +68,33 @@
   when: not dotfiles_use_stow
   block:
     - name: Ensure all configured dotfiles are links.
-      command: "ls -F {{ dotfiles_home }}/{{ item }}"
+      ansible.builtin.command: "ls -F {{ dotfiles_home }}/{{ item }}"
       register: existing_dotfile_info
       failed_when: false
       check_mode: false
       changed_when: false
-      with_items: "{{ dotfiles_files }}"
+      loop: "{{ dotfiles_files }}"
 
     - name: Remove existing dotfiles file if a replacement is being linked.
-      file:
+      ansible.builtin.file:
         path: "{{ dotfiles_home }}/{{ dotfiles_files[item.0] }}"
         state: absent
       when: "'@' not in item.1.stdout"
       with_indexed_items: "{{ existing_dotfile_info.results }}"
 
     - name: Ensure parent folders of link dotfiles exist.
-      file:
+      ansible.builtin.file:
         path: "{{ (dotfiles_home ~ '/' ~ item) | dirname }}"
         state: directory
+        mode: "0755"
         follow: true
       become: false
-      with_items: "{{ dotfiles_files }}"
+      loop: "{{ dotfiles_files }}"
 
     - name: Link dotfiles into home folder.
-      file:
+      ansible.builtin.file:
         src: "{{ dotfiles_repo_local_destination }}/{{ item }}"
         dest: "{{ dotfiles_home }}/{{ item }}"
         state: link
       become: false
-      with_items: "{{ dotfiles_files }}"
+      loop: "{{ dotfiles_files }}"

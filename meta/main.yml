@@ -7,7 +7,7 @@ galaxy_info:
   author: bernylinville
   description: Dotfile installation for UNIX/Linux with GNU Stow support.
   license: "license (BSD, MIT)"
-  min_ansible_version: 2.10
+  min_ansible_version: "2.10"
   platforms:
     - name: GenericUNIX
       versions:
