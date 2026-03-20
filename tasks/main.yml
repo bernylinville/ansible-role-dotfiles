@@ -29,16 +29,22 @@
 
 - name: Deploy dotfiles via stow.
   when: dotfiles_use_stow
+  vars:
+    _dotfiles_dest: "{{ dotfiles_repo_local_destination | expanduser }}"
+    _dotfiles_home: "{{ dotfiles_home | expanduser }}"
   block:
     - name: Backup existing dotfiles before stow.
       shell: |
         for pkg in {{ dotfiles_stow_packages | join(' ') }}; do
-          for file in $(find "{{ dotfiles_repo_local_destination }}/${pkg}" -maxdepth 1 -name '.*' -type f -exec basename {} \;); do
-            target="{{ dotfiles_home }}/${file}"
-            if [ -f "$target" ] && [ ! -L "$target" ]; then
-              mv "$target" "${target}.bak.$(date +%Y%m%d%H%M%S)"
-            fi
-          done
+          pkg_dir="{{ _dotfiles_dest }}/${pkg}"
+          if [ -d "$pkg_dir" ]; then
+            find "$pkg_dir" -maxdepth 1 -name '.*' -type f -exec basename {} \; | while read file; do
+              target="{{ _dotfiles_home }}/${file}"
+              if [ -f "$target" ] && [ ! -L "$target" ]; then
+                mv "$target" "${target}.bak.$(date +%Y%m%d%H%M%S)"
+              fi
+            done
+          fi
         done
       args:
         executable: /bin/bash
@@ -47,8 +53,8 @@
 
     - name: Install dotfiles packages via stow.
       command: >
-        stow -d {{ dotfiles_repo_local_destination }}
-        -t {{ dotfiles_home }}
+        stow -d {{ _dotfiles_dest }}
+        -t {{ _dotfiles_home }}
         --restow {{ item }}
       with_items: "{{ dotfiles_stow_packages }}"
       become: false
